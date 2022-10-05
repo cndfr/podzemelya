@@ -22,13 +22,14 @@ def create_character(id):
         'spells': 0,
         'moves': 0,
     }
-    global players
-    players[id] = character
+    # global players
+    # players[id] = character
 
     # with open("/Users/cndfr/Library/Mobile Documents/com~apple~CloudDocs/DEV/Podzemelya/data.pickle", "wb") as userdata:
     #     pickle.dump(character, userdata, protocol=pickle.HIGHEST_PROTOCOL)
-    # with shelve.open('/Users/cndfr/Library/Mobile Documents/com~apple~CloudDocs/DEV/Podzemelya/userdata.dat', 'w') as userdata:
-    #     userdata[id] = character
+
+    with shelve.open('/Users/cndfr/Library/Mobile Documents/com~apple~CloudDocs/DEV/Podzemelya/userdata', 'w') as userdata:
+        userdata[f'{id}'] = character
 
 # pages -------------- restriction ------------- add exclusions
 
@@ -45,8 +46,14 @@ def create_character(id):
 
 
 def get_moves(id, text):
-    global players
-    players[id]['moves'] = [int(move) for move in re.findall(r'\b\d+\b', text)]
+
+    with shelve.open('/Users/cndfr/Library/Mobile Documents/com~apple~CloudDocs/DEV/Podzemelya/userdata', 'w') as userdata:
+        profile = userdata[f'{id}']
+        profile['moves'] = [int(move) for move in re.findall(r'\b\d+\b', text)]
+        userdata[f'{id}'] = profile
+
+    # global players
+    # players[id]['moves'] = [int(move) for move in re.findall(r'\b\d+\b', text)]
 
 # items
 
@@ -59,7 +66,13 @@ def generate_answer(message):
     reqpage = int(message.text)
     if not (reqpage > 0 and reqpage <= 617):
         return 'Такой страницы нет'
-    if reqpage not in players[message.from_user.id]['moves']:
+
+    with shelve.open('/Users/cndfr/Library/Mobile Documents/com~apple~CloudDocs/DEV/Podzemelya/userdata', 'w') as userdata:
+        profile = userdata[f'{message.from_user.id}']
+        moves = profile['moves']
+
+    if reqpage not in moves:
+        # if reqpage not in players[message.from_user.id]['moves']:
         return 'Вы не можете сюда попасть'
 
     text = pages[reqpage].replace('<br>', '\r\n')
@@ -78,8 +91,12 @@ def start(message):
 
 @bot.message_handler(commands=['debug'])
 def debug(message):
+
+    with shelve.open('/Users/cndfr/Library/Mobile Documents/com~apple~CloudDocs/DEV/Podzemelya/userdata', 'w') as userdata:
+        entry = userdata[f'{message.from_user.id}']
+        moves = userdata[f'{message.from_user.id}']['moves']
     bot.send_message(
-        message.chat.id, f'Players: {players}', parse_mode='Html')
+        message.chat.id, f'Players: {players} \r\nUserdata: {entry} \r\nMoves: {moves}', parse_mode='Html')
 
 
 @bot.message_handler()
