@@ -41,8 +41,9 @@ def generate_answer(message):
         if reqpage > 0 and reqpage <= 617:
             text = pages[reqpage].replace('/', '\r\n')
             if reqpage in moves:
-                global players
-                players[message.from_user.id] = get_moves(text)
+                get_moves(text)
+                # global players
+                # players[message.from_user.id] = get_moves(text)
                 return f'{text}'
             else:
                 return 'Вы не можете сюда попасть'
@@ -57,7 +58,13 @@ def start(message):
     create_character(message.from_user.id)
     get_moves(pages[1])
     bot.send_message(
-        message.chat.id, f'{pages[1]} Players: {players}', parse_mode='Markdown')
+        message.chat.id, f'{pages[1]}', parse_mode='Markdown')
+
+
+@bot.message_handler(commands=['debug'])
+def debug(message):
+    bot.send_message(
+        message.chat.id, f'Players: {players}', parse_mode='Markdown')
 
 
 @bot.message_handler()
