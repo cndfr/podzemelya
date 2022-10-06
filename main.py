@@ -2,11 +2,10 @@ import re
 import telebot
 import shelve
 import random
+import linecache
+import json
 
 bot = telebot.TeleBot('***REMOVED***')
-
-with open('base.txt', newline='') as source:
-    pages = source.readlines()
 
 # DICE
 
@@ -22,13 +21,14 @@ def roll(dices):
 
 def create_character(id):
     character = {
+        'name': linecache.getline('names.txt', random.randint(0, 158)).replace("\n", ""),
         'skill': roll(1) + 6,
         'vigor': roll(2) + 12,
         'luck': roll(1) + 6,
         'gold': 15,
         'water': 2,
         'items': '0/7',
-        'spells': ['левитации', 'огня', 'иллюзии', 'силы', 'слабости', 'копии', 'исцеления', 'плавания'],
+        'spells': 'левитации, огня, иллюзии, силы, слабости, копии, исцеления, плавания',
         'moves': 0,
     }
     with shelve.open('userdata', 'w') as userdata:
@@ -47,11 +47,11 @@ def create_character(id):
 #     pages[i] = page
 
 
-def get_moves(id, text):
+def get_moves(id, paragraph):
     with shelve.open('userdata', 'w') as userdata:
         character = userdata[id]
         character['moves'] = [int(move)
-                              for move in re.findall(r'\b\d+\b', text)]
+                              for move in re.findall(r'\b\d+\b', paragraph)]
         userdata[id] = character
 
 # ITEMS
@@ -75,33 +75,34 @@ def generate_answer(message):
     if reqpage == moves[0]:
         return 'Вы сейчас здесь'
 
-    text = pages[reqpage].replace('<br>', '\r\n')
-    get_moves(f'{message.from_user.id}', text)
-    return f'{text}'
+    paragraph = linecache.getline('base.txt', reqpage).replace('<br>', '\r\n')
+    get_moves(f'{message.from_user.id}', paragraph)
+    return f'{paragraph}'
 
 # COMMANDS
 
 # start - рестарт
-# char - персонаж
+# hero - герой
 
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    create_character(f'{message.from_user.id}')
     bot.send_message(
         message.chat.id, f'<b>Старт игры</b> \r\nСоздание нового героя', parse_mode='Html')
-    char(message)
-    get_moves(f'{message.from_user.id}', pages[1])
-    text = pages[1].replace('<br>', '\r\n')
+    create_character(f'{message.from_user.id}')
+    hero(message)
+    paragraph = linecache.getline('base.txt', 1).replace('<br>', '\r\n')
+    get_moves(f'{message.from_user.id}', paragraph)
     bot.send_message(
-        message.chat.id, text, parse_mode='Html')
+        message.chat.id, paragraph, parse_mode='Html')
 
 
-@bot.message_handler(commands=['char'])
-def char(message):
+@bot.message_handler(commands=['hero'])
+def hero(message):
+    char = 0
     with shelve.open('userdata', 'r') as userdata:
         char = userdata[f'{message.from_user.id}']
-        char = userdata[f'{message.from_user.id}']
+        name = char['name']
         skill = char['skill']
         vigor = char['vigor']
         luck = char['luck']
@@ -110,7 +111,7 @@ def char(message):
         items = char['items']
         spells = char['spells']
     bot.send_message(
-        message.chat.id, f'Ваш герой: \r\n🗡 Мастерство: {skill} \r\n🫀 Выносливость: {vigor} \r\n☀️ Удача: {luck} \r\n💰 Деньги: {gold} \r\n💧 Вода: {water} \r\n📦 Вещи: {items} \r\n✨ Заклинания: {spells}', parse_mode='Html')
+        message.chat.id, f'<b>Ваш герой — {name}:</b> \r\n🗡 Мастерство: {skill} \r\n🫀 Выносливость: {vigor} \r\n☀️ Удача: {luck} \r\n💰 Деньги: {gold} \r\n💧 Вода: {water} \r\n📦 Вещи: {items} \r\n✨ Заклинания: {spells}', parse_mode='Html')
 
 
 @bot.message_handler(commands=['debug'])
