@@ -10,7 +10,7 @@ class bcolors:
 lastLine = 0
 parsed = [0]
 
-with open('/Users/cndfr/Library/Mobile Documents/com~apple~CloudDocs/DEV/Podzemelya/pcz.txt', newline='') as source:
+with open('archive/pcz.txt', newline='') as source:
     lines = source.readlines()
 
 for id in range(1, 618):
@@ -25,7 +25,7 @@ for id in range(1, 618):
             else:
                 content = line[line.index(pattern):]
                 # print('lastLine: ' + str(lastLine))
-                content += ' --------------⚔️-------------- newline'
+                content += '--------------⚔️--------------<br>'
                 rest = lines[lastLine + 1:]
                 for nextline in rest:
                     forward += 1
@@ -40,9 +40,9 @@ for id in range(1, 618):
             lastLine = lines.index(line) + forward
             break
 
-print(parsed)
+# print(parsed)
 
-with open('/Users/cndfr/Library/Mobile Documents/com~apple~CloudDocs/DEV/Podzemelya/base.txt', 'w') as base:
+with open('archive/base.txt', 'w') as base:
     for page in parsed:
         item = str(page).replace('\r\n', 'newline')
         base.write(f"{item}\n")
