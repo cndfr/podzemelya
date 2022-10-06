@@ -19,8 +19,6 @@ def roll(dices):
 
 # PLAYERS
 
-# ['левитация', 'огонь', 'иллюзия', 'сила', 'слабость', 'копия', 'исцеление', 'плавание']
-
 
 def create_character(id):
     character = {
