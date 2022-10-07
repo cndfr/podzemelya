@@ -57,7 +57,9 @@ with open('archive/base.txt', 'w') as base:
         paragraph = {
             'id': n,
             'event': 'default',
-            'moves': [],
+            'moves': [int(move)
+                      for move in re.findall(r'\b\d+\b', text)],
+
             'pass': [],
             'drops': [],
             'takes': [],
