@@ -16,7 +16,7 @@ def roll(dices):
         result += random.randint(1, 6)
     return result
 
-# PLAYERS
+# HEROES
 
 
 def create_character(id):
@@ -37,15 +37,18 @@ def create_character(id):
 
 # PAGES ------------- add exclusions
 
-# def create_page(i):
-#     page = {
-#         'items': '',
-#         'fight': False,
-#         'secmoves': '',
-#         'text': 'Вы быстро идете вперед — 3.',
-#     }
-#     global pages
-#     pages[i] = page
+
+def generate_paragraph(reqpage):
+    with open('base.txt', 'r') as book:
+        lines = book.readlines()
+        paragraph = json.loads(lines[reqpage])
+    return paragraph
+
+
+def uncode_text(paragraph):
+    text = str(paragraph['id']) + '. ' + \
+        paragraph['text'].replace('<br>', '\r\n').replace('<q>', '\"')
+    return text
 
 
 def set_moves(id, paragraph):
@@ -60,33 +63,6 @@ def set_moves(id, paragraph):
 
 # FIGHTS
 
-# ANSWER
-
-
-def generate_answer(message):
-    if not message.text.isnumeric():
-        return 'Введите номер страницы'
-    reqpage = int(message.text)
-    if not (reqpage > 0 and reqpage <= 617):
-        return 'Такой страницы нет'
-    with shelve.open('userdata', 'r') as userdata:
-        character = userdata[f'{message.from_user.id}']
-    if reqpage == character['paragraph']:
-        return 'Вы сейчас здесь'
-    if reqpage not in character['moves']:
-        return 'Вы не можете сюда попасть'
-
-    # paragraph = linecache.getline('base.txt', reqpage).replace('<br>', '\r\n')
-
-    with open('base.txt', 'r') as book:
-        lines = book.readlines()
-        paragraph = json.loads(lines[reqpage])
-
-        text = paragraph['text'].replace('<br>', '\r\n').replace('<q>', '\"')
-
-    set_moves(f'{message.from_user.id}', paragraph)
-    return f'{text}'
-
 # COMMANDS
 
 # start - рестарт
@@ -100,13 +76,8 @@ def start(message):
     create_character(f'{message.from_user.id}')
     hero(message)
 
-    # paragraph = linecache.getline('base.txt', 1).replace('<br>', '\r\n')
-
-    with open('base.txt', 'r') as book:
-        lines = book.readlines()
-        paragraph = json.loads(lines[1])
-
-        text = paragraph['text'].replace('<br>', '\r\n').replace('<q>', '\"')
+    paragraph = generate_paragraph(1)
+    text = uncode_text(paragraph)
 
     set_moves(f'{message.from_user.id}', paragraph)
     bot.send_message(
@@ -142,8 +113,24 @@ def debug(message):
 
 @bot.message_handler()
 def get_user_text(message):
+    if not message.text.isnumeric():
+        return 'Введите номер страницы'
+    reqpage = int(message.text)
+    if not (reqpage > 0 and reqpage <= 617):
+        return 'Такой страницы нет'
+    with shelve.open('userdata', 'r') as userdata:
+        character = userdata[f'{message.from_user.id}']
+    if reqpage == character['paragraph']:
+        return 'Вы сейчас здесь'
+    if reqpage not in character['moves']:
+        return 'Вы не можете сюда попасть'
+
+    paragraph = generate_paragraph(reqpage)
+    text = uncode_text(paragraph)
+    set_moves(f'{message.from_user.id}', paragraph)
+
     bot.send_message(
-        message.chat.id, generate_answer(message), parse_mode='Html')
+        message.chat.id, text, parse_mode='Html')
 
 
 bot.polling(non_stop=True)
