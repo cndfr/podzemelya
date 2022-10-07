@@ -4,6 +4,7 @@ import shelve
 import random
 import linecache
 import json
+import time
 
 bot = telebot.TeleBot('5752337489:AAGabYmTALazbxrgIVbkoyS2LFNSxHZjSf0')
 
@@ -46,6 +47,7 @@ def generate_paragraph(reqpage):
 
 
 def uncode_text(paragraph):
+    # str(paragraph['id']) + '. ' + paragraph['text'].replace('<br>', '\r\n').replace('<q>', '\"')
     text = str(paragraph['id']) + '. ' + \
         paragraph['text'].replace('<br>', '\r\n').replace('<q>', '\"')
     return text
@@ -58,9 +60,11 @@ def set_moves(id, paragraph):
         character['paragraph'] = paragraph['id']
         userdata[id] = character
 
+
 # ITEMS
 
 # FIGHTS
+
 
 # COMMANDS
 
@@ -71,13 +75,17 @@ def set_moves(id, paragraph):
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.send_message(
-        message.chat.id, f'<b>Старт игры</b> \r\nСоздание нового героя', parse_mode='Html')
+        message.chat.id, f'<b>Старт игры</b> \r\n⏳ Создание нового героя...', parse_mode='Html')
     create_character(f'{message.from_user.id}')
+
+    # time.sleep(3)
+
     hero(message)
+
+    # time.sleep(3)
 
     paragraph = generate_paragraph(1)
     text = uncode_text(paragraph)
-
     set_moves(f'{message.from_user.id}', paragraph)
     bot.send_message(
         message.chat.id, text, parse_mode='Html')
@@ -122,19 +130,77 @@ def get_user_text(message):
         return
     with shelve.open('userdata', 'r') as userdata:
         character = userdata[f'{message.from_user.id}']
-    if reqpage == character['paragraph']:
-        bot.send_message(message.chat.id, 'Вы сейчас здесь')
-        return
-    if reqpage not in character['moves']:
-        bot.send_message(message.chat.id, 'Вы не можете сюда попасть')
-        return
+    # if reqpage == character['paragraph']:
+    #     bot.send_message(message.chat.id, 'Вы сейчас здесь')
+    #     return
+    # if reqpage not in character['moves']:
+    #     bot.send_message(message.chat.id, 'Вы не можете сюда попасть')
+    #     return
 
     paragraph = generate_paragraph(reqpage)
     text = uncode_text(paragraph)
     set_moves(f'{message.from_user.id}', paragraph)
 
     bot.send_message(
+        message.chat.id, f'⏳ Открываю...', parse_mode='Html')
+
+    # time.sleep(5)
+
+    bot.send_message(
         message.chat.id, text, parse_mode='Html')
+
+    if paragraph['event'] == 'fight':
+        with shelve.open('userdata', 'r') as userdata:
+            hero = userdata[f'{message.from_user.id}']
+        foes = []
+        text = ''
+
+        for foe in paragraph['fight']:
+            foes.append(foe)
+            name = foe['name']
+            skill = foe['skill']
+            vigor = foe['vigor']
+            text += f'{name} 🗡{skill} 🫀{vigor} \n'
+
+        while foes[0]['vigor'] > 0 or foes[1]['vigor'] > 0:
+
+            for foe in foes:
+                if foe['vigor'] > 0:
+
+                    name = foe['name']
+
+                    hero_strike = roll(2) + hero['skill']
+                    # text += f'{hero_strike} \n'
+
+                    foe_strike = roll(2) + foe['skill']
+                    # text += f'{foe_strike} '
+
+                    strike = random.randint(1, 3)
+                    if hero_strike == foe_strike:
+                        text += f'\nТы промахнулся'
+                    if hero_strike > foe_strike:
+                        foe['vigor'] -= strike
+                        text += f'\n{name}  \nТы ударил 💥{strike}'
+                    if hero_strike < foe_strike:
+                        hero['vigor'] -= strike
+                        text += f'\n{name} \nНанес тебе удар -🫀{strike}'
+                    if foe['vigor'] <= 0:
+                        text += f', и убил 💀'
+                    text += '\n'
+
+            if hero['vigor'] <= 0:
+                text += '\n💀 Ты умер от ран'
+                break
+
+        vigor = hero['vigor']
+        with shelve.open('userdata', 'w') as userdata:
+            hero = userdata[f'{message.from_user.id}']
+            hero['vigor'] = vigor
+            userdata[f'{message.from_user.id}'] = hero
+            # userdata[f'{message.from_user.id}'] = hero
+
+        bot.send_message(
+            message.chat.id, f'Ход битвы: \n{text}', parse_mode='Html')  # \n{hero} \n{foes[0]}
 
 
 bot.polling(non_stop=True)
