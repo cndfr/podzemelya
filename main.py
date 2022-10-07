@@ -29,7 +29,8 @@ def create_character(id):
         'water': 2,
         'items': '0/7',
         'spells': 'левитации, огня, иллюзии, силы, слабости, копии, исцеления, плавания',
-        'moves': 0,
+        'paragraph': 0,
+        'moves': [1],
     }
     with shelve.open('userdata', 'w') as userdata:
         userdata[id] = character
@@ -47,11 +48,12 @@ def create_character(id):
 #     pages[i] = page
 
 
-def get_moves(id, paragraph):
+def set_moves(id, paragraph):
     with shelve.open('userdata', 'w') as userdata:
         character = userdata[id]
         character['moves'] = [int(move)
-                              for move in re.findall(r'\b\d+\b', paragraph)]
+                              for move in re.findall(r'\b\d+\b', paragraph['text'])]
+        character['paragraph'] = paragraph['id']
         userdata[id] = character
 
 # ITEMS
@@ -69,15 +71,21 @@ def generate_answer(message):
         return 'Такой страницы нет'
     with shelve.open('userdata', 'r') as userdata:
         character = userdata[f'{message.from_user.id}']
-        moves = character['moves']
-    if reqpage not in moves:
-        return 'Вы не можете сюда попасть'
-    if reqpage == moves[0]:
+    if reqpage == character['paragraph']:
         return 'Вы сейчас здесь'
+    if reqpage not in character['moves']:
+        return 'Вы не можете сюда попасть'
 
-    paragraph = linecache.getline('base.txt', reqpage).replace('<br>', '\r\n')
-    get_moves(f'{message.from_user.id}', paragraph)
-    return f'{paragraph}'
+    # paragraph = linecache.getline('base.txt', reqpage).replace('<br>', '\r\n')
+
+    with open('base.txt', 'r') as book:
+        lines = book.readlines()
+        paragraph = json.loads(lines[reqpage])
+
+        text = paragraph['text'].replace('<br>', '\r\n').replace('<q>', '\"')
+
+    set_moves(f'{message.from_user.id}', paragraph)
+    return f'{text}'
 
 # COMMANDS
 
@@ -91,10 +99,18 @@ def start(message):
         message.chat.id, f'<b>Старт игры</b> \r\nСоздание нового героя', parse_mode='Html')
     create_character(f'{message.from_user.id}')
     hero(message)
-    paragraph = linecache.getline('base.txt', 1).replace('<br>', '\r\n')
-    get_moves(f'{message.from_user.id}', paragraph)
+
+    # paragraph = linecache.getline('base.txt', 1).replace('<br>', '\r\n')
+
+    with open('base.txt', 'r') as book:
+        lines = book.readlines()
+        paragraph = json.loads(lines[1])
+
+        text = paragraph['text'].replace('<br>', '\r\n').replace('<q>', '\"')
+
+    set_moves(f'{message.from_user.id}', paragraph)
     bot.send_message(
-        message.chat.id, paragraph, parse_mode='Html')
+        message.chat.id, text, parse_mode='Html')
 
 
 @bot.message_handler(commands=['hero'])
