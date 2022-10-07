@@ -54,8 +54,7 @@ def uncode_text(paragraph):
 def set_moves(id, paragraph):
     with shelve.open('userdata', 'w') as userdata:
         character = userdata[id]
-        character['moves'] = [int(move)
-                              for move in re.findall(r'\b\d+\b', paragraph['text'])]
+        character['moves'] = paragraph['moves']
         character['paragraph'] = paragraph['id']
         userdata[id] = character
 
@@ -105,8 +104,9 @@ def hero(message):
 def debug(message):
     with shelve.open('userdata', 'r') as userdata:
         char = userdata[f'{message.from_user.id}']
+    paragraph = generate_paragraph(char['paragraph'])
     bot.send_message(
-        message.chat.id, f'{message.from_user.id} \r\nUserdata: {char}', parse_mode='Html')
+        message.chat.id, f'{message.from_user.id} \r\n✨ Userdata: {char} \r\n✨ Paragraph: {paragraph}')
 
 # MESSAGE
 
@@ -114,16 +114,20 @@ def debug(message):
 @bot.message_handler()
 def get_user_text(message):
     if not message.text.isnumeric():
-        return 'Введите номер страницы'
+        bot.send_message(message.chat.id, 'Введите номер страницы')
+        return
     reqpage = int(message.text)
     if not (reqpage > 0 and reqpage <= 617):
-        return 'Такой страницы нет'
+        bot.send_message(message.chat.id, 'Такой страницы нет')
+        return
     with shelve.open('userdata', 'r') as userdata:
         character = userdata[f'{message.from_user.id}']
     if reqpage == character['paragraph']:
-        return 'Вы сейчас здесь'
+        bot.send_message(message.chat.id, 'Вы сейчас здесь')
+        return
     if reqpage not in character['moves']:
-        return 'Вы не можете сюда попасть'
+        bot.send_message(message.chat.id, 'Вы не можете сюда попасть')
+        return
 
     paragraph = generate_paragraph(reqpage)
     text = uncode_text(paragraph)
