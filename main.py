@@ -125,7 +125,7 @@ def get_user_text(message):
         bot.send_message(message.chat.id, 'Введите номер страницы')
         return
     reqpage = int(message.text)
-    if not (reqpage > 0 and reqpage <= 617):
+    if not (reqpage > 0 and reqpage <= 618):
         bot.send_message(message.chat.id, 'Такой страницы нет')
         return
     with shelve.open('userdata', 'r') as userdata:
@@ -162,7 +162,7 @@ def get_user_text(message):
             vigor = foe['vigor']
             text += f'{name} 🗡{skill} 🫀{vigor} \n'
 
-        while foes[0]['vigor'] > 0 or foes[1]['vigor'] > 0:
+        while any(foe['vigor'] > 0 for foe in foes):
 
             for foe in foes:
                 if foe['vigor'] > 0:
@@ -170,32 +170,35 @@ def get_user_text(message):
                     name = foe['name']
 
                     hero_strike = roll(2) + hero['skill']
-                    # text += f'{hero_strike} \n'
-
                     foe_strike = roll(2) + foe['skill']
-                    # text += f'{foe_strike} '
 
-                    strike = random.randint(1, 3)
+                    strike = random.randint(1, 6)
                     if hero_strike == foe_strike:
-                        text += f'\nТы промахнулся'
+                        text += f'\nВы промахнулись'
                     if hero_strike > foe_strike:
                         foe['vigor'] -= strike
-                        text += f'\n{name}  \nТы ударил 💥{strike}'
+                        text += f'\n{name}  \nВы ударили 💥{strike}'
                     if hero_strike < foe_strike:
                         hero['vigor'] -= strike
-                        text += f'\n{name} \nНанес тебе удар -🫀{strike}'
+                        text += f'\n{name} \nНанес вам удар -🫀{strike}'
                     if foe['vigor'] <= 0:
-                        text += f', и убил 💀'
+                        text += f', и добили 💀'
                     text += '\n'
 
             if hero['vigor'] <= 0:
-                text += '\n💀 Ты умер от ран'
+                hero['moves'] = []
+                text += '\n💀 Вы умерли'
                 break
 
+        if hero['vigor'] > 0:
+            text += '\nВы победили в этом бою!'
+
         vigor = hero['vigor']
+        moves = hero['moves']
         with shelve.open('userdata', 'w') as userdata:
             hero = userdata[f'{message.from_user.id}']
             hero['vigor'] = vigor
+            hero['moves'] = moves
             userdata[f'{message.from_user.id}'] = hero
             # userdata[f'{message.from_user.id}'] = hero
 
