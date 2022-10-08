@@ -36,12 +36,13 @@ class Hero:
         self.moves = moves
 
 
-def create_character(id):
+def create_hero(id):
     hero = Hero(
         linecache.getline('names.txt', random.randint(
             0, 158)).replace("\n", ""),
-        roll(1) + 6, roll(2) + 12, roll(1) + 6, 15, 2, '0/7',
-        'левитации, огня, иллюзии, силы, слабости, копии, исцеления, плавания',
+        roll(1) + 6, roll(2) + 12, roll(1) + 6, 15, 2, ['Меч'],
+        ['левитации', 'огня', 'иллюзии', 'силы',
+            'слабости', 'копии', 'исцеления', 'плавания'],
         0, [1])
     with shelve.open('userdata', 'w') as userdata:
         userdata[id] = hero
@@ -95,6 +96,54 @@ class Foe:
         self.vigor = vigor
 
 
+def fight(message, paragraph):
+    with shelve.open('userdata', 'r') as userdata:
+        hero = userdata[f'{message.from_user.id}']
+    foes = []
+    text = ''
+
+    for foe in paragraph.fight:
+        foe = Foe(*foe)
+        foes.append(foe)
+        text += f'{foe.name} 🗡{foe.skill} 🫀{foe.vigor} \n'
+
+    while any(foe.vigor > 0 for foe in foes):
+        for foe in foes:
+            if foe.vigor > 0:
+
+                hero_strike = roll(2) + hero.skill
+                foe_strike = roll(2) + foe.skill
+
+                strike = random.randint(1, 6)
+                if hero_strike == foe_strike:
+                    text += f'\nВы промахнулись'
+                if hero_strike < foe_strike:
+                    hero.vigor -= strike
+                    text += f'\n{foe.name} \nНанес вам удар -🫀{strike}'
+                if hero_strike > foe_strike:
+                    foe.vigor -= strike
+                    text += f'\n{foe.name}  \nВы ударили 💥{strike}'
+                if foe.vigor <= 0:
+                    text += f', и добили 💀'
+                text += '\n'
+
+        if hero.vigor <= 0:
+            hero.vigor = 0
+            hero.moves = []
+            text += '\n💀 Вы умерли'
+            break
+
+    if hero.vigor > 0:
+        text += '\nВы победили в этом бою!'
+
+    with shelve.open('userdata', 'w') as userdata:
+        upd = userdata[f'{message.from_user.id}']
+        upd.vigor = hero.vigor
+        upd.moves = hero.moves
+        userdata[f'{message.from_user.id}'] = upd
+
+    return text
+
 # COMMANDS
 
 # start - рестарт
@@ -105,7 +154,7 @@ class Foe:
 def start(message):
     bot.send_message(
         message.chat.id, f'<b>Старт игры</b> \r\n⏳ Создание нового героя...', parse_mode='Html')
-    create_character(f'{message.from_user.id}')
+    create_hero(f'{message.from_user.id}')
 
     # time.sleep(3)
 
@@ -122,13 +171,14 @@ def start(message):
 
 @bot.message_handler(commands=['hero'])
 def hero(message):
-    char = 0
     with shelve.open('userdata', 'r') as userdata:
         hero = userdata[f'{message.from_user.id}']
         if hero.vigor == 0:
             hero.name = '💀 ' + hero.name
+        items = ', '.join(hero.items)
+        spells = ', '.join(hero.spells)
     bot.send_message(
-        message.chat.id, f'<b>Ваш герой — {hero.name}:</b> \r\n🗡 Мастерство: {hero.skill} \r\n🫀 Выносливость: {hero.vigor} \r\n☀️ Удача: {hero.luck} \r\n✨ Заклинания: {hero.spells}', parse_mode='Html')
+        message.chat.id, f'<b>Ваш герой — {hero.name}:</b> \r\n🗡 Мастерство: {hero.skill} \r\n🫀 Выносливость: {hero.vigor} \r\n☀️ Удача: {hero.luck} \r\n📦 Вещи: {items} \r\n✨ Заклинания: {spells}', parse_mode='Html')
     # \r\n💰 <i>Деньги: {hero.gold} \r\n💧 Вода: {hero.water} \r\n📦 Вещи: {hero.items}</i>
 
 
@@ -174,58 +224,57 @@ def get_user_text(message):
 
     # time.sleep(5)
 
+    if paragraph.rsvp:
+        if 'spell' in paragraph.rsvp:
+            if paragraph.rsvp['spell'] not in hero.spells:
+                bot.send_message(
+                    message.chat.id, 'У вас нет нужного заклятия')
+                return
+        if 'item' in paragraph.rsvp:
+            if paragraph.rsvp['item'] not in hero.items:
+                bot.send_message(message.chat.id, 'У вас нет нужного предмета')
+                return
+
+        if paragraph.takes:
+            if 'item' in paragraph.takes:
+                item = paragraph.takes['item']
+                hero.items.remove(f'{item}')
+            if 'spell' in paragraph.takes:
+                spell = paragraph.takes['spell']
+                hero.spells.remove(f'{spell}')
+
+    if paragraph.takes:
+        if 'skill' in paragraph.takes:
+            skill = paragraph.takes['skill']
+            hero.skill += skill
+        if 'vigor' in paragraph.takes:
+            vigor = paragraph.takes['vigor']
+            hero.vigor += vigor
+        if 'luck' in paragraph.takes:
+            luck = paragraph.takes['luck']
+            hero.luck += luck
+
+    if paragraph.drops:
+        if 'item' in paragraph.drops:
+            hero.items.append(paragraph.drops['item'])
+        if 'spell' in paragraph.drops:
+            hero.spells.append(paragraph.drops['spell'])
+        if 'skill' in paragraph.drops:
+            hero.skill += paragraph.drops['skill']
+        if 'vigor' in paragraph.drops:
+            hero.vigor += paragraph.drops['vigor']
+        if 'luck' in paragraph.drops:
+            hero.luck += paragraph.drops['luck']
+
+    with shelve.open('userdata', 'w') as userdata:
+        userdata[f'{message.from_user.id}'] = hero
+
     bot.send_message(
         message.chat.id, text, parse_mode='Html')
 
     if paragraph.event == 'fight':
-        with shelve.open('userdata', 'r') as userdata:
-            hero = userdata[f'{message.from_user.id}']
-        foes = []
-        text = ''
-
-        for foe in paragraph.fight:
-            foe = Foe(*foe)
-            foes.append(foe)
-            text += f'{foe.name} 🗡{foe.skill} 🫀{foe.vigor} \n'
-
-        while any(foe.vigor > 0 for foe in foes):
-            for foe in foes:
-                if foe.vigor > 0:
-
-                    hero_strike = roll(2) + hero.skill
-                    foe_strike = roll(2) + foe.skill
-
-                    strike = random.randint(1, 6)
-                    if hero_strike == foe_strike:
-                        text += f'\nВы промахнулись'
-                    if hero_strike > foe_strike:
-                        foe.vigor -= strike
-                        text += f'\n{foe.name}  \nВы ударили 💥{strike}'
-                    if hero_strike < foe_strike:
-                        hero.vigor -= strike
-                        text += f'\n{foe.name} \nНанес вам удар -🫀{strike}'
-                    if foe.vigor <= 0:
-                        text += f', и добили 💀'
-                    text += '\n'
-
-            if hero.vigor <= 0:
-                hero.vigor = 0
-                hero.moves = []
-                text += '\n💀 Вы умерли'
-                break
-
-        if hero.vigor > 0:
-            text += '\nВы победили в этом бою!'
-
-        with shelve.open('userdata', 'w') as userdata:
-            upd = userdata[f'{message.from_user.id}']
-            upd.vigor = hero.vigor
-            upd.moves = hero.moves
-            userdata[f'{message.from_user.id}'] = upd
-
         bot.send_message(
-            message.chat.id, f'Ход битвы: \n{text}', parse_mode='Html')
-        # \n{hero} \n{foes[0]}
+            message.chat.id, f'Ход битвы: \n{fight(message, paragraph)}', parse_mode='Html')
 
 
 bot.polling(non_stop=True)
