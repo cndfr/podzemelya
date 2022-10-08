@@ -14,7 +14,8 @@ bot = telebot.TeleBot('***REMOVED***')
 def roll(dices):
     result = 0
     for dice in range(dices):
-        result += random.randint(1, 6)
+        dice = random.randint(1, 6)
+        result += dice
     return result
 
 # HEROES
@@ -99,13 +100,16 @@ def hero(message):
         name = char['name']
         skill = char['skill']
         vigor = char['vigor']
+        if vigor == 0:
+            name = '💀 ' + char['name']
         luck = char['luck']
         gold = char['gold']
         water = char['water']
         items = char['items']
         spells = char['spells']
     bot.send_message(
-        message.chat.id, f'<b>Ваш герой — {name}:</b> \r\n🗡 Мастерство: {skill} \r\n🫀 Выносливость: {vigor} \r\n☀️ Удача: {luck} \r\n💰 Деньги: {gold} \r\n💧 Вода: {water} \r\n📦 Вещи: {items} \r\n✨ Заклинания: {spells}', parse_mode='Html')
+        message.chat.id, f'<b>Ваш герой — {name}:</b> \r\n🗡 Мастерство: {skill} \r\n🫀 Выносливость: {vigor} \r\n☀️ Удача: {luck} \r\n✨ Заклинания: {spells}', parse_mode='Html')
+    # \r\n💰 <i>Деньги: {gold} \r\n💧 Вода: {water} \r\n📦 Вещи: {items}</i>
 
 
 @bot.message_handler(commands=['debug'])
@@ -129,11 +133,15 @@ def get_user_text(message):
         bot.send_message(message.chat.id, 'Такой страницы нет')
         return
     with shelve.open('userdata', 'r') as userdata:
-        character = userdata[f'{message.from_user.id}']
-    # if reqpage == character['paragraph']:
+        hero = userdata[f'{message.from_user.id}']
+    if hero['vigor'] == 0:
+        bot.send_message(
+            message.chat.id, 'Ваше путешествие закончено. Создайте нового героя - /start')
+        return
+    # if reqpage == hero['paragraph']:
     #     bot.send_message(message.chat.id, 'Вы сейчас здесь')
     #     return
-    # if reqpage not in character['moves']:
+    # if reqpage not in hero['moves']:
     #     bot.send_message(message.chat.id, 'Вы не можете сюда попасть')
     #     return
 
@@ -186,6 +194,7 @@ def get_user_text(message):
                     text += '\n'
 
             if hero['vigor'] <= 0:
+                hero['vigor'] = 0
                 hero['moves'] = []
                 text += '\n💀 Вы умерли'
                 break
