@@ -1,3 +1,4 @@
+from cmath import log
 import re
 import telebot
 import shelve
@@ -21,50 +22,77 @@ def roll(dices):
 # HEROES
 
 
+class Hero:
+    def __init__(self, name, skill, vigor, luck, gold, water, items, spells, paragraph, moves):
+        self.name = name
+        self.skill = skill
+        self.vigor = vigor
+        self.luck = luck
+        self.gold = gold
+        self.water = water
+        self.items = items
+        self.spells = spells
+        self.paragraph = paragraph
+        self.moves = moves
+
+
 def create_character(id):
-    character = {
-        'name': linecache.getline('names.txt', random.randint(0, 158)).replace("\n", ""),
-        'skill': roll(1) + 6,
-        'vigor': roll(2) + 12,
-        'luck': roll(1) + 6,
-        'gold': 15,
-        'water': 2,
-        'items': '0/7',
-        'spells': 'левитации, огня, иллюзии, силы, слабости, копии, исцеления, плавания',
-        'paragraph': 0,
-        'moves': [1],
-    }
+    hero = Hero(
+        linecache.getline('names.txt', random.randint(
+            0, 158)).replace("\n", ""),
+        roll(1) + 6, roll(2) + 12, roll(1) + 6, 15, 2, '0/7',
+        'левитации, огня, иллюзии, силы, слабости, копии, исцеления, плавания',
+        0, [1])
     with shelve.open('userdata', 'w') as userdata:
-        userdata[id] = character
+        userdata[id] = hero
 
 # PAGES ------------- add exclusions
+
+
+class Paragraph:
+    def __init__(self, id, event, fight, moves, rsvp, drops, takes, text):
+        self.id = id
+        self.event = event
+        self.fight = fight
+        self.moves = moves
+        self.rsvp = rsvp
+        self.drops = drops
+        self.takes = takes
+        self.text = text
 
 
 def generate_paragraph(reqpage):
     with open('base.txt', 'r') as book:
         lines = book.readlines()
         paragraph = json.loads(lines[reqpage])
+        paragraph = Paragraph(*paragraph)
     return paragraph
 
 
 def uncode_text(paragraph):
-    # str(paragraph['id']) + '. ' + paragraph['text'].replace('<br>', '\r\n').replace('<q>', '\"')
-    text = str(paragraph['id']) + '. ' + \
-        paragraph['text'].replace('<br>', '\r\n').replace('<q>', '\"')
+    text = str(paragraph.id) + '. ' + \
+        paragraph.text.replace('<br>', '\r\n').replace('<q>', '\"')
     return text
 
 
 def set_moves(id, paragraph):
     with shelve.open('userdata', 'w') as userdata:
-        character = userdata[id]
-        character['moves'] = paragraph['moves']
-        character['paragraph'] = paragraph['id']
-        userdata[id] = character
+        hero = userdata[id]
+        hero.moves = paragraph.moves
+        hero.paragraph = paragraph.id
+        userdata[id] = hero
 
 
 # ITEMS
 
 # FIGHTS
+
+
+class Foe:
+    def __init__(self, name, skill, vigor):
+        self.name = name
+        self.skill = skill
+        self.vigor = vigor
 
 
 # COMMANDS
@@ -96,29 +124,21 @@ def start(message):
 def hero(message):
     char = 0
     with shelve.open('userdata', 'r') as userdata:
-        char = userdata[f'{message.from_user.id}']
-        name = char['name']
-        skill = char['skill']
-        vigor = char['vigor']
-        if vigor == 0:
-            name = '💀 ' + char['name']
-        luck = char['luck']
-        gold = char['gold']
-        water = char['water']
-        items = char['items']
-        spells = char['spells']
+        hero = userdata[f'{message.from_user.id}']
+        if hero.vigor == 0:
+            hero.name = '💀 ' + hero.name
     bot.send_message(
-        message.chat.id, f'<b>Ваш герой — {name}:</b> \r\n🗡 Мастерство: {skill} \r\n🫀 Выносливость: {vigor} \r\n☀️ Удача: {luck} \r\n✨ Заклинания: {spells}', parse_mode='Html')
-    # \r\n💰 <i>Деньги: {gold} \r\n💧 Вода: {water} \r\n📦 Вещи: {items}</i>
+        message.chat.id, f'<b>Ваш герой — {hero.name}:</b> \r\n🗡 Мастерство: {hero.skill} \r\n🫀 Выносливость: {hero.vigor} \r\n☀️ Удача: {hero.luck} \r\n✨ Заклинания: {hero.spells}', parse_mode='Html')
+    # \r\n💰 <i>Деньги: {hero.gold} \r\n💧 Вода: {hero.water} \r\n📦 Вещи: {hero.items}</i>
 
 
 @bot.message_handler(commands=['debug'])
 def debug(message):
     with shelve.open('userdata', 'r') as userdata:
-        char = userdata[f'{message.from_user.id}']
-    paragraph = generate_paragraph(char['paragraph'])
+        hero = userdata[f'{message.from_user.id}']
+    paragraph = generate_paragraph(hero.paragraph)
     bot.send_message(
-        message.chat.id, f'{message.from_user.id} \r\n✨ Userdata: {char} \r\n✨ Paragraph: {paragraph}')
+        message.chat.id, f'{message.from_user.id} \r\n✨ Userdata: {vars(hero)} \r\n✨ Paragraph: {vars(paragraph)}')
 
 # MESSAGE
 
@@ -134,7 +154,7 @@ def get_user_text(message):
         return
     with shelve.open('userdata', 'r') as userdata:
         hero = userdata[f'{message.from_user.id}']
-    if hero['vigor'] == 0:
+    if hero.vigor == 0:
         bot.send_message(
             message.chat.id, 'Ваше путешествие закончено. Создайте нового героя - /start')
         return
@@ -157,62 +177,55 @@ def get_user_text(message):
     bot.send_message(
         message.chat.id, text, parse_mode='Html')
 
-    if paragraph['event'] == 'fight':
+    if paragraph.event == 'fight':
         with shelve.open('userdata', 'r') as userdata:
             hero = userdata[f'{message.from_user.id}']
         foes = []
         text = ''
 
-        for foe in paragraph['fight']:
+        for foe in paragraph.fight:
+            foe = Foe(*foe)
             foes.append(foe)
-            name = foe['name']
-            skill = foe['skill']
-            vigor = foe['vigor']
-            text += f'{name} 🗡{skill} 🫀{vigor} \n'
+            text += f'{foe.name} 🗡{foe.skill} 🫀{foe.vigor} \n'
 
-        while any(foe['vigor'] > 0 for foe in foes):
-
+        while any(foe.vigor > 0 for foe in foes):
             for foe in foes:
-                if foe['vigor'] > 0:
+                if foe.vigor > 0:
 
-                    name = foe['name']
-
-                    hero_strike = roll(2) + hero['skill']
-                    foe_strike = roll(2) + foe['skill']
+                    hero_strike = roll(2) + hero.skill
+                    foe_strike = roll(2) + foe.skill
 
                     strike = random.randint(1, 6)
                     if hero_strike == foe_strike:
                         text += f'\nВы промахнулись'
                     if hero_strike > foe_strike:
-                        foe['vigor'] -= strike
-                        text += f'\n{name}  \nВы ударили 💥{strike}'
+                        foe.vigor -= strike
+                        text += f'\n{foe.name}  \nВы ударили 💥{strike}'
                     if hero_strike < foe_strike:
-                        hero['vigor'] -= strike
-                        text += f'\n{name} \nНанес вам удар -🫀{strike}'
-                    if foe['vigor'] <= 0:
+                        hero.vigor -= strike
+                        text += f'\n{foe.name} \nНанес вам удар -🫀{strike}'
+                    if foe.vigor <= 0:
                         text += f', и добили 💀'
                     text += '\n'
 
-            if hero['vigor'] <= 0:
-                hero['vigor'] = 0
-                hero['moves'] = []
+            if hero.vigor <= 0:
+                hero.vigor = 0
+                hero.moves = []
                 text += '\n💀 Вы умерли'
                 break
 
-        if hero['vigor'] > 0:
+        if hero.vigor > 0:
             text += '\nВы победили в этом бою!'
 
-        vigor = hero['vigor']
-        moves = hero['moves']
         with shelve.open('userdata', 'w') as userdata:
-            hero = userdata[f'{message.from_user.id}']
-            hero['vigor'] = vigor
-            hero['moves'] = moves
-            userdata[f'{message.from_user.id}'] = hero
-            # userdata[f'{message.from_user.id}'] = hero
+            upd = userdata[f'{message.from_user.id}']
+            upd.vigor = hero.vigor
+            upd.moves = hero.moves
+            userdata[f'{message.from_user.id}'] = upd
 
         bot.send_message(
-            message.chat.id, f'Ход битвы: \n{text}', parse_mode='Html')  # \n{hero} \n{foes[0]}
+            message.chat.id, f'Ход битвы: \n{text}', parse_mode='Html')
+        # \n{hero} \n{foes[0]}
 
 
 bot.polling(non_stop=True)
