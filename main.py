@@ -23,9 +23,10 @@ def roll(dices):
 
 
 class Hero:
-    def __init__(self, name, skill, vigor, luck, gold, water, items, spells, paragraph, moves):
+    def __init__(self, name, skill, overskill, vigor, luck, gold, water, items, spells, paragraph, moves):
         self.name = name
         self.skill = skill
+        self.overskill = overskill
         self.vigor = vigor
         self.luck = luck
         self.gold = gold
@@ -40,7 +41,7 @@ def create_hero(id):
     hero = Hero(
         linecache.getline('names.txt', random.randint(
             0, 158)).replace("\n", ""),
-        roll(1) + 6, roll(2) + 12, roll(1) + 6, 15, 2, ['Меч'],
+        roll(1) + 6, 0, roll(2) + 12, roll(1) + 6, 15, 2, ['Меч'],
         ['левитации', 'огня', 'иллюзии', 'силы',
             'слабости', 'копии', 'исцеления', 'плавания'],
         0, [1])
@@ -102,6 +103,8 @@ def fight(message, paragraph):
     foes = []
     text = ''
 
+    hero.skill = hero.skill + hero.overskill
+
     for foe in paragraph.fight:
         foe = Foe(*foe)
         foes.append(foe)
@@ -135,6 +138,8 @@ def fight(message, paragraph):
 
     if hero.vigor > 0:
         text += '\nВы победили в этом бою!'
+
+    hero.overskill = 0
 
     with shelve.open('userdata', 'w') as userdata:
         upd = userdata[f'{message.from_user.id}']
@@ -256,11 +261,13 @@ def get_user_text(message):
 
     if paragraph.drops:
         if 'item' in paragraph.drops:
-            hero.items.append(paragraph.drops['item'])
+            hero.items += (paragraph.drops['item'])
         if 'spell' in paragraph.drops:
             hero.spells.append(paragraph.drops['spell'])
         if 'skill' in paragraph.drops:
             hero.skill += paragraph.drops['skill']
+        if 'overskill' in paragraph.drops:
+            hero.overskill += paragraph.drops['overskill']
         if 'vigor' in paragraph.drops:
             hero.vigor += paragraph.drops['vigor']
         if 'luck' in paragraph.drops:
