@@ -161,11 +161,11 @@ def start(message):
         message.chat.id, f'<b>Старт игры</b> \r\n⏳ Создание нового героя...', parse_mode='Html')
     create_hero(f'{message.from_user.id}')
 
-    # time.sleep(3)
+    time.sleep(3)
 
     hero(message)
 
-    # time.sleep(3)
+    time.sleep(5)
 
     paragraph = generate_paragraph(1)
     text = uncode_text(paragraph)
@@ -204,7 +204,7 @@ def get_user_text(message):
         bot.send_message(message.chat.id, 'Введите номер страницы')
         return
     reqpage = int(message.text)
-    if not (reqpage > 0 and reqpage <= 618):
+    if not (reqpage > 0 and reqpage <= 619):
         bot.send_message(message.chat.id, 'Такой страницы нет')
         return
     with shelve.open('userdata', 'r') as userdata:
@@ -213,21 +213,20 @@ def get_user_text(message):
         bot.send_message(
             message.chat.id, 'Ваше путешествие закончено. Создайте нового героя - /start')
         return
-    # if reqpage == hero['paragraph']:
-    #     bot.send_message(message.chat.id, 'Вы сейчас здесь')
-    #     return
-    # if reqpage not in hero['moves']:
-    #     bot.send_message(message.chat.id, 'Вы не можете сюда попасть')
-    #     return
+    if reqpage == hero.paragraph:
+        bot.send_message(message.chat.id, 'Вы сейчас здесь')
+        return
+    if reqpage not in hero.moves:
+        bot.send_message(message.chat.id, 'Вы не можете сюда попасть')
+        return
 
     paragraph = generate_paragraph(reqpage)
-    text = uncode_text(paragraph)
-    set_moves(f'{message.from_user.id}', paragraph)
+    text = f'🗡{hero.skill} 🫀{hero.vigor} ☀️{hero.luck} 📦{len(hero.items)} \n{uncode_text(paragraph)}'
 
     bot.send_message(
         message.chat.id, f'⏳ Открываю...', parse_mode='Html')
 
-    # time.sleep(5)
+    time.sleep(3)
 
     if paragraph.rsvp:
         if 'spell' in paragraph.rsvp:
@@ -273,9 +272,13 @@ def get_user_text(message):
         if 'luck' in paragraph.drops:
             hero.luck += paragraph.drops['luck']
 
+    if hero.vigor <= 0:
+        hero.vigor = 0
+
     with shelve.open('userdata', 'w') as userdata:
         userdata[f'{message.from_user.id}'] = hero
 
+    set_moves(f'{message.from_user.id}', paragraph)
     bot.send_message(
         message.chat.id, text, parse_mode='Html')
 
