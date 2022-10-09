@@ -1,4 +1,3 @@
-from cmath import log
 import re
 import telebot
 import shelve
@@ -202,86 +201,103 @@ def fight(message, paragraph, hero):
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(
-        message.chat.id, f'<b>Старт игры</b> \r\n⏳ Создание нового героя...', parse_mode='Html')
-    create_hero(f'{message.from_user.id}')
+    try:
+        bot.send_message(
+            message.chat.id, f'<b>Старт игры</b> \r\n⏳ Создание нового героя...', parse_mode='Html')
+        create_hero(f'{message.from_user.id}')
 
-    time.sleep(3)
+        time.sleep(3)
 
-    hero(message)
+        hero(message)
 
-    time.sleep(3)
+        time.sleep(3)
 
-    paragraph = generate_paragraph(1)
-    text = uncode_text(paragraph)
-    set_moves(f'{message.from_user.id}', paragraph)
-    bot.send_message(
-        message.chat.id, text, parse_mode='Html')
+        paragraph = generate_paragraph(1)
+        text = uncode_text(paragraph)
+        set_moves(f'{message.from_user.id}', paragraph)
+        bot.send_message(
+            message.chat.id, text, parse_mode='Html')
+    except:
+        bot.send_message(
+            message.chat.id, 'Что-то сломалось, попробуйте начать еще раз - /start')
 
 
 @bot.message_handler(commands=['hero'])
 def hero(message):
-    with shelve.open('userdata', 'r') as userdata:
-        hero = userdata[f'{message.from_user.id}']
-        if hero.vigor == 0:
-            hero.name = '💀 ' + hero.name
-        items = ', '.join(hero.items)
-        spells = ', '.join(hero.spells)
-    bot.send_message(
-        message.chat.id, f'<b>Ваш герой — {hero.name}:</b> \r\n🗡 Мастерство: {hero.skill} \r\n🫀 Выносливость: {hero.vigor} \r\n☀️ Удача: {hero.luck} \r\n📦 Вещи: {items} \r\n✨ Заклинания: {spells}', parse_mode='Html')
-    # \r\n💰 <i>Деньги: {hero.gold} \r\n💧 Вода: {hero.water} \r\n📦 Вещи: {hero.items}</i>
+    try:
+        with shelve.open('userdata', 'r') as userdata:
+            hero = userdata[f'{message.from_user.id}']
+            if hero.vigor == 0:
+                hero.name = '💀 ' + hero.name
+            items = ', '.join(hero.items)
+            spells = ', '.join(hero.spells)
+        bot.send_message(
+            message.chat.id, f'<b>Ваш герой — {hero.name}:</b> \r\n🗡 Мастерство: {hero.skill} \r\n🫀 Выносливость: {hero.vigor} \r\n☀️ Удача: {hero.luck} \r\n📦 Вещи: {items} \r\n✨ Заклинания: {spells}', parse_mode='Html')
+        # \r\n💰 <i>Деньги: {hero.gold} \r\n💧 Вода: {hero.water} \r\n📦 Вещи: {hero.items}</i>
+    except:
+        bot.send_message(
+            message.chat.id, 'Что-то сломалось, попробуйте повторить команду')
 
 
 @bot.message_handler(commands=['debug'])
 def debug(message):
-    with shelve.open('userdata', 'r') as userdata:
-        hero = userdata[f'{message.from_user.id}']
-    paragraph = generate_paragraph(hero.paragraph)
-    bot.send_message(
-        message.chat.id, f'{message.from_user.id} \r\n✨ Userdata: {vars(hero)} \r\n✨ Paragraph: {vars(paragraph)}')
+    try:
+        with shelve.open('userdata', 'r') as userdata:
+            hero = userdata[f'{message.from_user.id}']
+        paragraph = generate_paragraph(hero.paragraph)
+        bot.send_message(
+            message.chat.id, f'{message.from_user.id} \r\n✨ Userdata: {vars(hero)} \r\n✨ Paragraph: {vars(paragraph)}')
+    except:
+        bot.send_message(
+            message.chat.id, 'Пиздец, даже дебаг не работает!')
 
 # MESSAGE
 
 
 @bot.message_handler()
 def get_user_text(message):
-    if not message.text.isnumeric():
-        bot.send_message(message.chat.id, 'Введите номер страницы')
-        return
-    reqpage = int(message.text)
-    if not (reqpage > 0 and reqpage <= 619):
-        bot.send_message(message.chat.id, 'Такой страницы нет')
-        return
-    with shelve.open('userdata', 'r') as userdata:
-        hero = userdata[f'{message.from_user.id}']
-    if hero.vigor == 0:
+    try:
+        if not message.text.isnumeric():
+            bot.send_message(message.chat.id, 'Введите номер страницы')
+            return
+        reqpage = int(message.text)
+        if not (reqpage > 0 and reqpage <= 619):
+            bot.send_message(message.chat.id, 'Такой страницы нет')
+            return
+
+        with shelve.open('userdata', 'r') as userdata:
+            hero = userdata[f'{message.from_user.id}']
+        if hero.vigor == 0:
+            bot.send_message(
+                message.chat.id, 'Ваше путешествие закончено. Создайте нового героя - /start')
+            return
+        if reqpage == hero.paragraph:
+            bot.send_message(message.chat.id, 'Вы сейчас здесь')
+            return
+        if reqpage not in hero.moves:
+            bot.send_message(message.chat.id, 'Вы не можете сюда попасть')
+            return
+
+        paragraph = generate_paragraph(reqpage)
+        text = f'🗡{hero.skill} 🫀{hero.vigor} ☀️{hero.luck} 📦{len(hero.items)} \n{uncode_text(paragraph)}'
+
         bot.send_message(
-            message.chat.id, 'Ваше путешествие закончено. Создайте нового героя - /start')
-        return
-    if reqpage == hero.paragraph:
-        bot.send_message(message.chat.id, 'Вы сейчас здесь')
-        return
-    if reqpage not in hero.moves:
-        bot.send_message(message.chat.id, 'Вы не можете сюда попасть')
-        return
+            message.chat.id, f'⏳ Открываю...', parse_mode='Html')
 
-    paragraph = generate_paragraph(reqpage)
-    text = f'🗡{hero.skill} 🫀{hero.vigor} ☀️{hero.luck} 📦{len(hero.items)} \n{uncode_text(paragraph)}'
+        time.sleep(3)
 
-    bot.send_message(
-        message.chat.id, f'⏳ Открываю...', parse_mode='Html')
+        exchange_items(message, paragraph, hero)
+        set_moves(f'{message.from_user.id}', paragraph)
 
-    time.sleep(3)
-
-    exchange_items(message, paragraph, hero)
-    set_moves(f'{message.from_user.id}', paragraph)
-
-    bot.send_message(
-        message.chat.id, text, parse_mode='Html')
-
-    if paragraph.event == 'fight':
         bot.send_message(
-            message.chat.id, f'Ход битвы: \n{fight(message, paragraph, hero)}', parse_mode='Html')
+            message.chat.id, text, parse_mode='Html')
+
+        if paragraph.event == 'fight':
+            bot.send_message(
+                message.chat.id, f'Ход битвы: \n{fight(message, paragraph, hero)}', parse_mode='Html')
+    except:
+        bot.send_message(
+            message.chat.id, 'Что-то сломалось, попробуйте еще раз')
 
 
 bot.polling(non_stop=True)
