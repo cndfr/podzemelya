@@ -87,6 +87,54 @@ def set_moves(id, paragraph):
 
 # ITEMS
 
+def exchange_items(message, paragraph, hero):
+    if paragraph.rsvp:
+        if 'spell' in paragraph.rsvp:
+            if paragraph.rsvp['spell'] not in hero.spells:
+                bot.send_message(
+                    message.chat.id, 'У вас нет нужного заклятия')
+                return
+        if 'item' in paragraph.rsvp:
+            if paragraph.rsvp['item'] not in hero.items:
+                bot.send_message(message.chat.id, 'У вас нет нужного предмета')
+                return
+
+        if paragraph.takes:
+            if 'item' in paragraph.takes:
+                item = paragraph.takes['item']
+                hero.items.remove(f'{item}')
+            if 'spell' in paragraph.takes:
+                spell = paragraph.takes['spell']
+                hero.spells.remove(f'{spell}')
+
+    if paragraph.takes:
+        if 'skill' in paragraph.takes:
+            skill = paragraph.takes['skill']
+            hero.skill += skill
+        if 'vigor' in paragraph.takes:
+            vigor = paragraph.takes['vigor']
+            hero.vigor += vigor
+        if 'luck' in paragraph.takes:
+            luck = paragraph.takes['luck']
+            hero.luck += luck
+
+    if paragraph.drops:
+        if 'spell' in paragraph.drops:
+            hero.spells.append(paragraph.drops['spell'])
+        if 'item' in paragraph.drops:
+            hero.items += paragraph.drops['item']
+        if 'skill' in paragraph.drops:
+            hero.skill += paragraph.drops['skill']
+        if 'overskill' in paragraph.drops:
+            hero.overskill += paragraph.drops['overskill']
+        if 'vigor' in paragraph.drops:
+            hero.vigor += paragraph.drops['vigor']
+        if 'luck' in paragraph.drops:
+            hero.luck += paragraph.drops['luck']
+
+    with shelve.open('userdata', 'w') as userdata:
+        userdata[f'{message.from_user.id}'] = hero
+
 # FIGHTS
 
 
@@ -97,7 +145,7 @@ class Foe:
         self.vigor = vigor
 
 
-def fight(message, paragraph):
+def fight(message, paragraph, hero):
     with shelve.open('userdata', 'r') as userdata:
         hero = userdata[f'{message.from_user.id}']
     foes = []
@@ -142,10 +190,7 @@ def fight(message, paragraph):
     hero.overskill = 0
 
     with shelve.open('userdata', 'w') as userdata:
-        upd = userdata[f'{message.from_user.id}']
-        upd.vigor = hero.vigor
-        upd.moves = hero.moves
-        userdata[f'{message.from_user.id}'] = upd
+        userdata[f'{message.from_user.id}'] = hero
 
     return text
 
@@ -165,7 +210,7 @@ def start(message):
 
     hero(message)
 
-    time.sleep(5)
+    time.sleep(3)
 
     paragraph = generate_paragraph(1)
     text = uncode_text(paragraph)
@@ -228,63 +273,15 @@ def get_user_text(message):
 
     time.sleep(3)
 
-    if paragraph.rsvp:
-        if 'spell' in paragraph.rsvp:
-            if paragraph.rsvp['spell'] not in hero.spells:
-                bot.send_message(
-                    message.chat.id, 'У вас нет нужного заклятия')
-                return
-        if 'item' in paragraph.rsvp:
-            if paragraph.rsvp['item'] not in hero.items:
-                bot.send_message(message.chat.id, 'У вас нет нужного предмета')
-                return
-
-        if paragraph.takes:
-            if 'item' in paragraph.takes:
-                item = paragraph.takes['item']
-                hero.items.remove(f'{item}')
-            if 'spell' in paragraph.takes:
-                spell = paragraph.takes['spell']
-                hero.spells.remove(f'{spell}')
-
-    if paragraph.takes:
-        if 'skill' in paragraph.takes:
-            skill = paragraph.takes['skill']
-            hero.skill += skill
-        if 'vigor' in paragraph.takes:
-            vigor = paragraph.takes['vigor']
-            hero.vigor += vigor
-        if 'luck' in paragraph.takes:
-            luck = paragraph.takes['luck']
-            hero.luck += luck
-
-    if paragraph.drops:
-        if 'item' in paragraph.drops:
-            hero.items += (paragraph.drops['item'])
-        if 'spell' in paragraph.drops:
-            hero.spells.append(paragraph.drops['spell'])
-        if 'skill' in paragraph.drops:
-            hero.skill += paragraph.drops['skill']
-        if 'overskill' in paragraph.drops:
-            hero.overskill += paragraph.drops['overskill']
-        if 'vigor' in paragraph.drops:
-            hero.vigor += paragraph.drops['vigor']
-        if 'luck' in paragraph.drops:
-            hero.luck += paragraph.drops['luck']
-
-    if hero.vigor <= 0:
-        hero.vigor = 0
-
-    with shelve.open('userdata', 'w') as userdata:
-        userdata[f'{message.from_user.id}'] = hero
-
+    exchange_items(message, paragraph, hero)
     set_moves(f'{message.from_user.id}', paragraph)
+
     bot.send_message(
         message.chat.id, text, parse_mode='Html')
 
     if paragraph.event == 'fight':
         bot.send_message(
-            message.chat.id, f'Ход битвы: \n{fight(message, paragraph)}', parse_mode='Html')
+            message.chat.id, f'Ход битвы: \n{fight(message, paragraph, hero)}', parse_mode='Html')
 
 
 bot.polling(non_stop=True)
