@@ -4,6 +4,7 @@ import random
 import linecache
 import json
 import time
+import datetime
 
 
 with open('bot_token.txt') as bot_token:
@@ -13,6 +14,18 @@ with open('bot_token.txt') as bot_token:
         print('Не получилось прочитать bot_token.txt')
 
 bot = telebot.TeleBot(token)
+
+# ANAL
+
+
+def log(message, event):
+    print(f'{message.chat.id} {datetime.datetime.now()} {event}')
+    with open('log.txt', 'a+') as log:
+        log.seek(0)
+        data = log.read(100)
+        if len(data) > 0:
+            log.write("\n")
+        log.write(f'{message.chat.id} {datetime.datetime.now()} {event}')
 
 # DICE
 
@@ -42,7 +55,7 @@ class Hero:
         self.moves = moves
 
 
-def create_hero(id):
+def create_hero(message):
     hero = Hero(
         linecache.getline('names.txt', random.randint(
             0, 158)).replace("\n", ""),
@@ -51,7 +64,7 @@ def create_hero(id):
             'слабости', 'копии', 'исцеления', 'плавания'],
         0, [1])
     with shelve.open('userdata', 'c') as userdata:
-        userdata[id] = hero
+        userdata[f'{message.chat.id}'] = hero
 
 # PAGES ------------- add exclusions
 
@@ -208,13 +221,18 @@ def start(message):
     try:
         bot.send_message(
             message.chat.id, f'<b>Старт игры</b> \r\n⏳ Создание нового героя...', parse_mode='Html')
-        create_hero(f'{message.from_user.id}')
 
-        # time.sleep(3)
+        try:
+            create_hero(message)
+            log(message, 's')
+        except:
+            bot.send_message(message.chat.id, 'Что-то не так с базой данных')
+
+        time.sleep(3)
 
         hero(message)
 
-        # time.sleep(3)
+        time.sleep(3)
 
         paragraph = generate_paragraph(1)
         text = uncode_text(paragraph)
@@ -239,6 +257,7 @@ def hero(message):
                 hero.name = '💀 ' + hero.name
             items = ', '.join(hero.items)
             spells = ', '.join(hero.spells)
+        log(message, 'h')
         bot.send_message(
             message.chat.id, f'<b>Ваш герой — {hero.name}:</b> \r\n🗡 Мастерство: {skill_and_overskill} \r\n🫀 Выносливость: {hero.vigor} \r\n☀️ Удача: {hero.luck} \r\n📦 Вещи: {items} \r\n✨ Заклинания: {spells}', parse_mode='Html')
         # \r\n💰 <i>Деньги: {hero.gold} \r\n💧 Вода: {hero.water} \r\n📦 Вещи: {hero.items}</i>
@@ -255,6 +274,8 @@ def debug(message):
         paragraph = generate_paragraph(hero.paragraph)
         bot.send_message(
             message.chat.id, f'{message.from_user.id} \r\n✨ Userdata: {vars(hero)} \r\n✨ Paragraph: {vars(paragraph)}')
+
+        log(message, 'd!')
     except:
         bot.send_message(message.chat.id, 'Пиздец, даже дебаг не работает!')
 
@@ -277,13 +298,14 @@ def get_user_text(message):
         if hero.vigor == 0:
             bot.send_message(
                 message.chat.id, 'Ваше путешествие закончено. Создайте нового героя - /start')
+            log(message, 'd')
             return
-        # if reqpage == hero.paragraph:
-        #     bot.send_message(message.chat.id, 'Вы сейчас здесь')
-        #     return
-        # if reqpage not in hero.moves:
-        #     bot.send_message(message.chat.id, 'Вы не можете сюда попасть')
-        #     return
+        if reqpage == hero.paragraph:
+            bot.send_message(message.chat.id, 'Вы сейчас здесь')
+            return
+        if reqpage not in hero.moves:
+            bot.send_message(message.chat.id, 'Вы не можете сюда попасть')
+            return
 
         paragraph = generate_paragraph(reqpage)
         if hero.overskill == 0:
@@ -295,10 +317,12 @@ def get_user_text(message):
         bot.send_message(
             message.chat.id, f'⏳ Открываю...', parse_mode='Html')
 
-        # time.sleep(3)
+        time.sleep(15)
 
         if exchange_items(message, paragraph, hero) != "no_items":
             set_moves(f'{message.from_user.id}', paragraph)
+
+            log(message, 'm')
 
             bot.send_message(
                 message.chat.id, text, parse_mode='Html')
