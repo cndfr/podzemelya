@@ -50,7 +50,7 @@ def create_hero(id):
         ['левитации', 'огня', 'иллюзии', 'силы',
             'слабости', 'копии', 'исцеления', 'плавания'],
         0, [1])
-    with shelve.open('userdata', 'w') as userdata:
+    with shelve.open('userdata', 'c') as userdata:
         userdata[id] = hero
 
 # PAGES ------------- add exclusions

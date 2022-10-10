@@ -6,4 +6,4 @@ RUN pip install pyTelegramBotAPI
 
 COPY . .
 
-CMD python3 main.py
+CMD [ "python3", "main.py" ]

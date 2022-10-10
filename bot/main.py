@@ -5,7 +5,14 @@ import linecache
 import json
 import time
 
-bot = telebot.TeleBot('***REMOVED***')
+
+with open('bot_token.txt') as bot_token:
+    try:
+        token = bot_token.readline()
+    except:
+        print('Не получилось прочитать bot_token.txt')
+
+bot = telebot.TeleBot(token)
 
 # DICE
 
@@ -249,8 +256,7 @@ def debug(message):
         bot.send_message(
             message.chat.id, f'{message.from_user.id} \r\n✨ Userdata: {vars(hero)} \r\n✨ Paragraph: {vars(paragraph)}')
     except:
-        bot.send_message(
-            message.chat.id, 'Пиздец, даже дебаг не работает!')
+        bot.send_message(message.chat.id, 'Пиздец, даже дебаг не работает!')
 
 # MESSAGE
 
