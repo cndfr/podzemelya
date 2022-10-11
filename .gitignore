@@ -1,5 +1,5 @@
 archive
 log
 storage
-.dockerignore
-.gitignore
+*dockerignore
+*gitignore
