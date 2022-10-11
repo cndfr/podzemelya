@@ -1,4 +1,5 @@
+storage
+log
 archive
-docker*
-git*
-userdata.db
+.gitignore
+.dockerignore

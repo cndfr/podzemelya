@@ -6,26 +6,33 @@ import json
 import time
 import datetime
 
+ver = '0.1.2'
 
-with open('bot_token.txt') as bot_token:
+with open('storage/bot_token.txt') as bot_token:
     try:
         token = bot_token.readline()
     except:
         print('Не получилось прочитать bot_token.txt')
 
 bot = telebot.TeleBot(token)
+# bot = telebot.TeleBot('***REMOVED***')
 
 # ANAL
 
 
 def log(message, event):
-    print(f'{message.chat.id} {datetime.datetime.now()} {event}')
-    with open('log.txt', 'a+') as log:
+
+    with open('storage/log.txt', 'a+') as log:
         log.seek(0)
         data = log.read(100)
         if len(data) > 0:
             log.write("\n")
-        log.write(f'{message.chat.id} {datetime.datetime.now()} {event}')
+        if event == 'move':
+            event = f'move {message.text}'
+        print(
+            f'{datetime.datetime.now()} {message.chat.id} {message.from_user.username} {event}')
+        log.write(
+            f'{datetime.datetime.now()} {message.chat.id} ({message.from_user.username}) {event}')
 
 # DICE
 
@@ -63,7 +70,7 @@ def create_hero(message):
         ['левитации', 'огня', 'иллюзии', 'силы',
             'слабости', 'копии', 'исцеления', 'плавания'],
         0, [1])
-    with shelve.open('userdata', 'c') as userdata:
+    with shelve.open('storage/userdata', 'c') as userdata:
         userdata[f'{message.chat.id}'] = hero
 
 # PAGES ------------- add exclusions
@@ -96,7 +103,7 @@ def uncode_text(paragraph):
 
 
 def set_moves(id, paragraph):
-    with shelve.open('userdata', 'w') as userdata:
+    with shelve.open('storage/userdata', 'w') as userdata:
         hero = userdata[id]
         hero.moves = paragraph.moves
         hero.paragraph = paragraph.id
@@ -150,7 +157,7 @@ def exchange_items(message, paragraph, hero):
         if 'luck' in paragraph.drops:
             hero.luck += paragraph.drops['luck']
 
-    with shelve.open('userdata', 'w') as userdata:
+    with shelve.open('storage/userdata', 'w') as userdata:
         userdata[f'{message.from_user.id}'] = hero
 
 # FIGHTS
@@ -164,7 +171,7 @@ class Foe:
 
 
 def fight(message, paragraph, hero):
-    with shelve.open('userdata', 'r') as userdata:
+    with shelve.open('storage/userdata', 'r') as userdata:
         hero = userdata[f'{message.from_user.id}']
     foes = []
     text = ''
@@ -198,6 +205,7 @@ def fight(message, paragraph, hero):
             hero.vigor = 0
             hero.moves = []
             text += '\n💀 Вы умерли'
+            log(message, 'death')
             break
 
     if hero.vigor > 0:
@@ -205,7 +213,7 @@ def fight(message, paragraph, hero):
 
     hero.overskill = 0
 
-    with shelve.open('userdata', 'w') as userdata:
+    with shelve.open('storage/userdata', 'w') as userdata:
         userdata[f'{message.from_user.id}'] = hero
 
     return text
@@ -224,7 +232,7 @@ def start(message):
 
         try:
             create_hero(message)
-            log(message, 's')
+            log(message, 'start')
         except:
             bot.send_message(message.chat.id, 'Что-то не так с базой данных')
 
@@ -247,7 +255,7 @@ def start(message):
 @bot.message_handler(commands=['hero'])
 def hero(message):
     try:
-        with shelve.open('userdata', 'r') as userdata:
+        with shelve.open('storage/userdata', 'r') as userdata:
             hero = userdata[f'{message.from_user.id}']
             if hero.overskill == 0:
                 skill_and_overskill = hero.skill
@@ -257,7 +265,7 @@ def hero(message):
                 hero.name = '💀 ' + hero.name
             items = ', '.join(hero.items)
             spells = ', '.join(hero.spells)
-        log(message, 'h')
+        log(message, 'hero')
         bot.send_message(
             message.chat.id, f'<b>Ваш герой — {hero.name}:</b> \r\n🗡 Мастерство: {skill_and_overskill} \r\n🫀 Выносливость: {hero.vigor} \r\n☀️ Удача: {hero.luck} \r\n📦 Вещи: {items} \r\n✨ Заклинания: {spells}', parse_mode='Html')
         # \r\n💰 <i>Деньги: {hero.gold} \r\n💧 Вода: {hero.water} \r\n📦 Вещи: {hero.items}</i>
@@ -269,13 +277,13 @@ def hero(message):
 @bot.message_handler(commands=['debug'])
 def debug(message):
     try:
-        with shelve.open('userdata', 'r') as userdata:
+        with shelve.open('storage/userdata', 'r') as userdata:
             hero = userdata[f'{message.from_user.id}']
         paragraph = generate_paragraph(hero.paragraph)
         bot.send_message(
-            message.chat.id, f'{message.from_user.id} \r\n✨ Userdata: {vars(hero)} \r\n✨ Paragraph: {vars(paragraph)}')
+            message.chat.id, f'v{ver} \r\n{message.from_user.id} \r\n✨ Userdata: {vars(hero)} \r\n✨ Paragraph: {vars(paragraph)}')
 
-        log(message, 'd!')
+        log(message, 'debug!')
     except:
         bot.send_message(message.chat.id, 'Пиздец, даже дебаг не работает!')
 
@@ -293,12 +301,12 @@ def get_user_text(message):
             bot.send_message(message.chat.id, 'Такой страницы нет')
             return
 
-        with shelve.open('userdata', 'r') as userdata:
+        with shelve.open('storage/userdata', 'r') as userdata:
             hero = userdata[f'{message.from_user.id}']
         if hero.vigor == 0:
             bot.send_message(
                 message.chat.id, 'Ваше путешествие закончено. Создайте нового героя - /start')
-            log(message, 'd')
+            log(message, 'death')
             return
         if reqpage == hero.paragraph:
             bot.send_message(message.chat.id, 'Вы сейчас здесь')
@@ -317,17 +325,18 @@ def get_user_text(message):
         bot.send_message(
             message.chat.id, f'⏳ Открываю...', parse_mode='Html')
 
-        time.sleep(15)
+        time.sleep(10)
 
         if exchange_items(message, paragraph, hero) != "no_items":
             set_moves(f'{message.from_user.id}', paragraph)
 
-            log(message, 'm')
+            log(message, 'move')
 
             bot.send_message(
                 message.chat.id, text, parse_mode='Html')
 
             if paragraph.event == 'fight':
+                log(message, 'fight')
                 bot.send_message(
                     message.chat.id, f'Ход битвы: \n{fight(message, paragraph, hero)}', parse_mode='Html')
     except:
