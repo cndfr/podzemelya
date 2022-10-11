@@ -15,7 +15,6 @@ with open('storage/bot_token.txt') as bot_token:
         print('Не получилось прочитать bot_token.txt')
 
 bot = telebot.TeleBot(token)
-# bot = telebot.TeleBot('***REMOVED***')
 
 # ANAL
 
