@@ -1,6 +1,4 @@
-archive
+misc
 log
 storage
 secrets
-*dockerignore
-*gitignore
