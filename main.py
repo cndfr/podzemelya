@@ -8,11 +8,11 @@ import datetime
 
 ver = '0.1.2'
 
-with open('storage/bot_token.txt') as bot_token:
-    try:
+try:
+    with open('storage/bot_token.txt') as bot_token:
         token = bot_token.readline()
-    except:
-        print('Не получилось прочитать bot_token.txt')
+except:
+    print('Не получилось прочитать bot_token.txt')
 
 bot = telebot.TeleBot(token)
 
@@ -20,18 +20,20 @@ bot = telebot.TeleBot(token)
 
 
 def log(message, event):
-
-    with open('storage/log.txt', 'a+') as log:
-        log.seek(0)
-        data = log.read(100)
-        if len(data) > 0:
-            log.write("\n")
-        if event == 'move':
-            event = f'move {message.text}'
-        print(
-            f'{datetime.datetime.now()} {message.chat.id} {message.from_user.username} {event}')
-        log.write(
-            f'{datetime.datetime.now()} {message.chat.id} ({message.from_user.username}) {event}')
+    try:
+        with open('storage/log.txt', 'a+') as log:
+            log.seek(0)
+            data = log.read(100)
+            if len(data) > 0:
+                log.write("\n")
+            if event == 'move':
+                event = f'move {message.text}'
+            log.write(
+                f'{datetime.datetime.now()} {message.chat.id} ({message.from_user.username}) {message.from_user.first_name} {message.from_user.last_name} — {event}')
+            print(
+                f'{datetime.datetime.now()} {message.chat.id} ({message.from_user.username} {message.from_user.first_name} {message.from_user.last_name}) — {event}')
+    except:
+        print('Логгирование не удалось')
 
 # DICE
 
@@ -72,7 +74,7 @@ def create_hero(message):
     with shelve.open('storage/userdata', 'c') as userdata:
         userdata[f'{message.chat.id}'] = hero
 
-# PAGES ------------- add exclusions
+# PAGES
 
 
 class Paragraph:
@@ -115,8 +117,7 @@ def exchange_items(message, paragraph, hero):
     if paragraph.rsvp:
         if 'spell' in paragraph.rsvp:
             if paragraph.rsvp['spell'] not in hero.spells:
-                bot.send_message(
-                    message.chat.id, 'У вас нет нужного заклятия')
+                bot.send_message(message.chat.id, 'У вас нет нужного заклятия')
                 return "no_items"
         if 'item' in paragraph.rsvp:
             if paragraph.rsvp['item'] not in hero.items:
@@ -170,8 +171,10 @@ class Foe:
 
 
 def fight(message, paragraph, hero):
+    id = f'{message.from_user.id}'
     with shelve.open('storage/userdata', 'r') as userdata:
-        hero = userdata[f'{message.from_user.id}']
+        hero = userdata[id]
+
     foes = []
     text = ''
 
@@ -213,7 +216,7 @@ def fight(message, paragraph, hero):
     hero.overskill = 0
 
     with shelve.open('storage/userdata', 'w') as userdata:
-        userdata[f'{message.from_user.id}'] = hero
+        userdata[id] = hero
 
     return text
 
@@ -264,10 +267,10 @@ def hero(message):
                 hero.name = '💀 ' + hero.name
             items = ', '.join(hero.items)
             spells = ', '.join(hero.spells)
-        log(message, 'hero')
         bot.send_message(
             message.chat.id, f'<b>Ваш герой — {hero.name}:</b> \r\n🗡 Мастерство: {skill_and_overskill} \r\n🫀 Выносливость: {hero.vigor} \r\n☀️ Удача: {hero.luck} \r\n📦 Вещи: {items} \r\n✨ Заклинания: {spells}', parse_mode='Html')
         # \r\n💰 <i>Деньги: {hero.gold} \r\n💧 Вода: {hero.water} \r\n📦 Вещи: {hero.items}</i>
+        log(message, 'hero')
     except:
         bot.send_message(
             message.chat.id, 'Что-то сломалось, попробуйте повторить команду')
@@ -281,7 +284,6 @@ def debug(message):
         paragraph = generate_paragraph(hero.paragraph)
         bot.send_message(
             message.chat.id, f'v{ver} \r\n{message.from_user.id} \r\n✨ Userdata: {vars(hero)} \r\n✨ Paragraph: {vars(paragraph)}')
-
         log(message, 'debug!')
     except:
         bot.send_message(message.chat.id, 'Пиздец, даже дебаг не работает!')
@@ -329,10 +331,10 @@ def get_user_text(message):
         if exchange_items(message, paragraph, hero) != "no_items":
             set_moves(f'{message.from_user.id}', paragraph)
 
-            log(message, 'move')
-
             bot.send_message(
                 message.chat.id, text, parse_mode='Html')
+
+            log(message, 'move')
 
             if paragraph.event == 'fight':
                 log(message, 'fight')

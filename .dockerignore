@@ -1,6 +1,3 @@
-storage
 log
-archive
-secrets
-.gitignore
-.dockerignore
+misc
+storage
